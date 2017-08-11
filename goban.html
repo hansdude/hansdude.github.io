@@ -1,0 +1,162 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>GoBan</title>
+  <style>
+    dl {
+      margin: 0;
+      padding: 0;
+    }
+    dt, dd {
+      margin: 0;
+      padding: 0;
+      float: left;
+    }
+    dt {
+      width: 3em;
+      clear: left;
+    }
+    dd {
+      width: 2em;
+      text-align: right;
+    }
+    .title {
+      font-weight: bold;
+      line-height: 2em;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="goban" width="1000" height="1000"></canvas>
+
+  <div>
+    <span class="title">Captures</span>
+    <dl id="captures">
+      <dt>White</dt>
+      <dd id="white-captures"></dd>
+      <dt>Black</dt>
+      <dd id="black-captures"></dd>
+    </dl>
+  </div>
+
+  <script>
+(() => {
+  const lines = 19;
+  const size = 1000;
+  const increment = size / (lines + 1);
+  const start = increment;
+  const end = size - increment;
+
+  const drawBackground = () => {
+    context.fillStyle = "#e9c372";
+    context.fillRect(0, 0, size, size);
+  };
+
+  const drawLine = (start, end) => {
+    context.lineWidth = 2;
+    context.strokeStyle = "black";
+    context.beginPath();
+    context.moveTo(start.x, start.y);
+    context.lineTo(end.x, end.y);
+    context.stroke();
+  };
+
+  const drawStar = ({x, y}) => {
+    context.fillStyle = "black";
+    context.beginPath();
+    context.ellipse(
+        start + x * increment /* x */,
+        start + y * increment /* y */,
+        5 /* radiusX */,
+        5 /* radiusY */,
+        2 * Math.PI /* rotation */,
+        0 /* startAngle */,
+        2 * Math.PI /* endAngle */);
+    context.fill();
+  };
+
+  const drawStone = ({x, y}, color) => {
+    context.lineWidth = 2;
+    context.strokeStyle = "black";
+    context.fillStyle = color;
+    context.beginPath();
+    context.ellipse(
+        start + x * increment /* x */,
+        start + y * increment /* y */,
+        increment * .4 /* radiusX */,
+        increment * .4 /* radiusY */,
+        2 * Math.PI /* rotation */,
+        0 /* startAngle */,
+        2 * Math.PI /* endAngle */);
+    context.stroke();
+    context.fill();
+  };
+
+  const setCaptures = (color, count) => {
+    document.getElementById(color + "-captures").innerText = count;
+  };
+
+  let canvas = document.getElementById("goban");
+  let context = canvas.getContext("2d");
+
+  drawBackground();
+
+  // Draw the vertical lines.
+  for (let x = start; x <= end; x += increment) {
+    drawLine({x, y: start - 1}, {x, y: end + 1});
+  }
+
+  // Draw the horizontal lines.
+  for (let y = start; y <= end; y += increment) {
+    drawLine({x: start - 1, y}, {x: end + 1, y});
+  }
+
+  // Draw the star points.
+  switch (lines) {
+    case 9:
+      {
+        let positions = [2, 6];
+        positions.forEach(x => {
+          positions.forEach(y => {
+            drawStar({x, y});
+          });
+        });
+        drawStar({x: 4, y: 4});
+        break;
+      }
+    case 13:
+      {
+        let positions = [3, 6, 9];
+        positions.forEach(x => {
+          positions.forEach(y => {
+            drawStar({x, y});
+          });
+        });
+        break;
+      }
+    case 19:
+      {
+        let positions = [3, 9, 15];
+        positions.forEach(x => {
+          positions.forEach(y => {
+            drawStar({x, y});
+          });
+        });
+        break;
+      }
+  }
+
+  // Here's where we actually draw the board state.
+  for (let x = 0; x < lines; x++) {
+    for (let y = 0; y < lines; y++) {
+      drawStone({x, y}, (x + y) % 2 ? "white" : "black");
+    }
+  }
+  setCaptures("white", 12);
+  setCaptures("black", 0);
+})();
+  </script>
+</body>
+</html>
