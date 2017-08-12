@@ -156,6 +156,25 @@
   }
   setCaptures("white", 12);
   setCaptures("black", 0);
+
+  const onStoneClicked = ({x, y}) => {
+    console.log(x, y);
+  };
+
+  const click = ({x, y}) => {
+    const newX = Math.round((x - start) / increment);
+    const newY = Math.round((y - start) / increment);
+    if (0 <= newX && newX < lines
+        && 0 <= newY && newY < lines) {
+      onStoneClicked({x: newX, y: newY});
+    }
+  };
+
+  canvas.addEventListener("click", event => {
+    if (event.button === 0) {
+      click({x: event.offsetX, y: event.offsetY})
+    }
+  });
 })();
   </script>
 </body>
