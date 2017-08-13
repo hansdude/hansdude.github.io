@@ -11,24 +11,66 @@ module Goban {
     player: Player;
   }
 
-  export class Coordinates {
-    public increment : number;
-    private start : number;
-    private end : number;
+  export interface Settings {
+    lines: number;
+    moveListener: (Point) => void;
+    canvas: HTMLCanvasElement;
+  }
 
-    constructor(
-        public lines : number,
-        public size : number,
-        public starRadius : number) {
-      this.increment = this.size / (this.lines + 1);
-      this.start = this.increment;
-      this.end = this.size - this.increment;
+  export class Canvas {
+    private state : Array<Stone> = [];
+    private boardPainter : BoardPainter;
+    private coordinates : Coordinates;
+
+    constructor(private settings : Settings) {
+      this.coordinates = new Coordinates(this.settings.lines);
+
+      this.attachClickEvent();
+
+      this.boardPainter =
+          new BoardPainter(this.coordinates, this.settings.canvas.getContext("2d"));
+
+      this.resize();
+    }
+
+    setStones(value : Array<Stone>) {
+      this.state = value;
+      this.boardPainter.drawBoard(this.state);
+    }
+
+    resize() {
+      this.coordinates.size =
+          Math.min(this.settings.canvas.width, this.settings.canvas.height);
+      this.boardPainter.drawBoard(this.state);
+    }
+
+    private attachClickEvent() {
+      this.settings.canvas.addEventListener("click", event => {
+        if (event.button === 0) {
+          const {x, y} =
+              this.coordinates.fromRaw({x: event.offsetX, y: event.offsetY});
+          if (0 <= x && x < this.settings.lines
+              && 0 <= y && y < this.settings.lines) {
+            this.settings.moveListener({x, y});
+          }
+        }
+      });
+    }
+  }
+
+  class Coordinates {
+    size: number;
+
+    constructor(public lines : number) {}
+
+    increment() {
+      return this.size / (this.lines + 1);
     }
 
     toRaw({x, y}) {
       return {
-        x: x * this.increment + this.start,
-        y: y * this.increment + this.start,
+        x: (x + 1) * this.increment(),
+        y: (y + 1) * this.increment(),
       };
     }
 
@@ -40,11 +82,22 @@ module Goban {
     }
 
     private fromRawScalar(scalar) {
-      return Math.abs(Math.round((scalar - this.start) / this.increment));
+      const result = Math.round((scalar - this.increment()) / this.increment());
+      // Get rid of negative zeros (oh javascript).
+      return result ? result : 0;
     }
   }
 
-  export class BoardPainter {
+  class BoardPainter {
+    private settings = {
+      backgroundColor: "#e9c372",
+      lineColor: "black",
+      lineWidth: 2,
+      blackColor: "black",
+      whiteColor: "white",
+      starRadius: 5,
+    };
+
     constructor(
         public coordinates : Coordinates,
         private context : CanvasRenderingContext2D) {}
@@ -57,7 +110,7 @@ module Goban {
     }
 
     private drawBackground() {
-      this.context.fillStyle = "#e9c372";
+      this.context.fillStyle = this.settings.backgroundColor;
       this.context.fillRect(0, 0, this.coordinates.size, this.coordinates.size);
     }
 
@@ -78,9 +131,9 @@ module Goban {
     private drawLine(start, end) {
       const rawStart = this.coordinates.toRaw(start);
       const rawEnd = this.coordinates.toRaw(end);
-      //TODO: lineWidth
-      this.context.lineWidth = 2;
-      this.context.strokeStyle = "black";
+      this.context.lineCap = "round";
+      this.context.lineWidth = this.settings.lineWidth;
+      this.context.strokeStyle = this.settings.lineColor;
       this.context.beginPath();
       this.context.moveTo(rawStart.x, rawStart.y);
       this.context.lineTo(rawEnd.x, rawEnd.y);
@@ -125,32 +178,31 @@ module Goban {
 
     private drawStar(point : Point) {
       const rawPoint = this.coordinates.toRaw(point);
-      this.context.fillStyle = "black";
+      this.context.fillStyle = this.settings.lineColor;
+      this.context.strokeStyle = this.settings.lineColor;
       this.context.beginPath();
       this.context.ellipse(
           rawPoint.x,
           rawPoint.y,
-          this.coordinates.starRadius /* radiusX */,
-          this.coordinates.starRadius /* radiusY */,
+          this.settings.starRadius /* radiusX */,
+          this.settings.starRadius /* radiusY */,
           2 * Math.PI /* rotation */,
           0 /* startAngle */,
           2 * Math.PI /* endAngle */);
       this.context.fill();
     }
 
-    //TODO: enum color
     private drawStone(stone : Stone) {
       const rawPoint = this.coordinates.toRaw(stone.point);
-      //TODO: lineWidth
-      this.context.lineWidth = 2;
-      this.context.strokeStyle = "black";
+      this.context.lineWidth = this.settings.lineWidth;
+      this.context.strokeStyle = this.settings.lineColor;
       this.context.fillStyle = this.toColor(stone.player);
       this.context.beginPath();
       this.context.ellipse(
           rawPoint.x,
           rawPoint.y,
-          this.coordinates.increment * .4 /* radiusX */,
-          this.coordinates.increment * .4 /* radiusY */,
+          this.coordinates.increment() * .4 /* radiusX */,
+          this.coordinates.increment() * .4 /* radiusY */,
           2 * Math.PI /* rotation */,
           0 /* startAngle */,
           2 * Math.PI /* endAngle */);
@@ -161,58 +213,10 @@ module Goban {
     private toColor(player : Player) {
       switch(player) {
         case Player.White:
-          return "white";
+          return this.settings.whiteColor;
         case Player.Black:
-          return "black";
+          return this.settings.blackColor;
       }
-    }
-  }
-
-  export class BoardInput {
-    constructor(
-        coordinates : Coordinates,
-        canvas : HTMLElement) {
-      canvas.addEventListener("click", event => {
-        if (event.button === 0) {
-          const {x, y} = coordinates.fromRaw({x: event.offsetX, y: event.offsetY});
-          if (0 <= x && x < coordinates.lines && 0 <= y && y < coordinates.lines) {
-            this.stoneClicked({x, y});
-          }
-        }
-      });
-    }
-
-    stoneClicked(point : Point) {
-      //TODO
-      console.log("stone clicked at", point);
-    }
-  }
-
-  export interface Settings {
-    lines: number;
-    moveListener: number;
-    canvas: HTMLCanvasElement;
-  }
-
-  export class Canvas {
-    private state : Array<Stone> = [];
-    private boardPainter : BoardPainter;
-
-    constructor(settings : Settings) {
-      const context = settings.canvas.getContext("2d");
-      const coordinates = new Goban.Coordinates(
-          settings.lines,
-          Math.min(settings.canvas.width, settings.canvas.height),
-          5 /* starSize */);
-      this.boardPainter = new Goban.BoardPainter(coordinates, context);
-      const input = new Goban.BoardInput(coordinates, settings.canvas);
-      this.boardPainter.drawBoard(this.state);
-    }
-
-    setStones(value : Array<Stone>) {
-      this.state = value;
-      this.boardPainter.drawBoard(this.state);
-      //TODO: redraw on resize
     }
   }
 }

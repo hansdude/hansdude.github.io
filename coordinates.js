@@ -5,20 +5,52 @@ var Goban;
         Player[Player["White"] = 0] = "White";
         Player[Player["Black"] = 1] = "Black";
     })(Player = Goban.Player || (Goban.Player = {}));
-    var Coordinates = (function () {
-        function Coordinates(lines, size, starRadius) {
-            this.lines = lines;
-            this.size = size;
-            this.starRadius = starRadius;
-            this.increment = this.size / (this.lines + 1);
-            this.start = this.increment;
-            this.end = this.size - this.increment;
+    var Canvas = (function () {
+        function Canvas(settings) {
+            this.settings = settings;
+            this.state = [];
+            this.coordinates = new Coordinates(this.settings.lines);
+            this.attachClickEvent();
+            this.boardPainter =
+                new BoardPainter(this.coordinates, this.settings.canvas.getContext("2d"));
+            this.resize();
         }
+        Canvas.prototype.setStones = function (value) {
+            this.state = value;
+            this.boardPainter.drawBoard(this.state);
+        };
+        Canvas.prototype.resize = function () {
+            this.coordinates.size =
+                Math.min(this.settings.canvas.width, this.settings.canvas.height);
+            this.boardPainter.drawBoard(this.state);
+        };
+        Canvas.prototype.attachClickEvent = function () {
+            var _this = this;
+            this.settings.canvas.addEventListener("click", function (event) {
+                if (event.button === 0) {
+                    var _a = _this.coordinates.fromRaw({ x: event.offsetX, y: event.offsetY }), x = _a.x, y = _a.y;
+                    if (0 <= x && x < _this.settings.lines
+                        && 0 <= y && y < _this.settings.lines) {
+                        _this.settings.moveListener({ x: x, y: y });
+                    }
+                }
+            });
+        };
+        return Canvas;
+    }());
+    Goban.Canvas = Canvas;
+    var Coordinates = (function () {
+        function Coordinates(lines) {
+            this.lines = lines;
+        }
+        Coordinates.prototype.increment = function () {
+            return this.size / (this.lines + 1);
+        };
         Coordinates.prototype.toRaw = function (_a) {
             var x = _a.x, y = _a.y;
             return {
-                x: x * this.increment + this.start,
-                y: y * this.increment + this.start
+                x: (x + 1) * this.increment(),
+                y: (y + 1) * this.increment()
             };
         };
         Coordinates.prototype.fromRaw = function (_a) {
@@ -29,15 +61,24 @@ var Goban;
             };
         };
         Coordinates.prototype.fromRawScalar = function (scalar) {
-            return Math.abs(Math.round((scalar - this.start) / this.increment));
+            var result = Math.round((scalar - this.increment()) / this.increment());
+            // Get rid of negative zeros (oh javascript).
+            return result ? result : 0;
         };
         return Coordinates;
     }());
-    Goban.Coordinates = Coordinates;
     var BoardPainter = (function () {
         function BoardPainter(coordinates, context) {
             this.coordinates = coordinates;
             this.context = context;
+            this.settings = {
+                backgroundColor: "#e9c372",
+                lineColor: "black",
+                lineWidth: 2,
+                blackColor: "black",
+                whiteColor: "white",
+                starRadius: 5
+            };
         }
         BoardPainter.prototype.drawBoard = function (stones) {
             var _this = this;
@@ -47,7 +88,7 @@ var Goban;
             stones.forEach(function (stone) { return _this.drawStone(stone); });
         };
         BoardPainter.prototype.drawBackground = function () {
-            this.context.fillStyle = "#e9c372";
+            this.context.fillStyle = this.settings.backgroundColor;
             this.context.fillRect(0, 0, this.coordinates.size, this.coordinates.size);
         };
         BoardPainter.prototype.drawLines = function () {
@@ -64,9 +105,9 @@ var Goban;
         BoardPainter.prototype.drawLine = function (start, end) {
             var rawStart = this.coordinates.toRaw(start);
             var rawEnd = this.coordinates.toRaw(end);
-            //TODO: lineWidth
-            this.context.lineWidth = 2;
-            this.context.strokeStyle = "black";
+            this.context.lineCap = "round";
+            this.context.lineWidth = this.settings.lineWidth;
+            this.context.strokeStyle = this.settings.lineColor;
             this.context.beginPath();
             this.context.moveTo(rawStart.x, rawStart.y);
             this.context.lineTo(rawEnd.x, rawEnd.y);
@@ -110,68 +151,30 @@ var Goban;
         };
         BoardPainter.prototype.drawStar = function (point) {
             var rawPoint = this.coordinates.toRaw(point);
-            this.context.fillStyle = "black";
+            this.context.fillStyle = this.settings.lineColor;
+            this.context.strokeStyle = this.settings.lineColor;
             this.context.beginPath();
-            this.context.ellipse(rawPoint.x, rawPoint.y, this.coordinates.starRadius /* radiusX */, this.coordinates.starRadius /* radiusY */, 2 * Math.PI /* rotation */, 0 /* startAngle */, 2 * Math.PI /* endAngle */);
+            this.context.ellipse(rawPoint.x, rawPoint.y, this.settings.starRadius /* radiusX */, this.settings.starRadius /* radiusY */, 2 * Math.PI /* rotation */, 0 /* startAngle */, 2 * Math.PI /* endAngle */);
             this.context.fill();
         };
-        //TODO: enum color
         BoardPainter.prototype.drawStone = function (stone) {
             var rawPoint = this.coordinates.toRaw(stone.point);
-            //TODO: lineWidth
-            this.context.lineWidth = 2;
-            this.context.strokeStyle = "black";
+            this.context.lineWidth = this.settings.lineWidth;
+            this.context.strokeStyle = this.settings.lineColor;
             this.context.fillStyle = this.toColor(stone.player);
             this.context.beginPath();
-            this.context.ellipse(rawPoint.x, rawPoint.y, this.coordinates.increment * .4 /* radiusX */, this.coordinates.increment * .4 /* radiusY */, 2 * Math.PI /* rotation */, 0 /* startAngle */, 2 * Math.PI /* endAngle */);
+            this.context.ellipse(rawPoint.x, rawPoint.y, this.coordinates.increment() * .4 /* radiusX */, this.coordinates.increment() * .4 /* radiusY */, 2 * Math.PI /* rotation */, 0 /* startAngle */, 2 * Math.PI /* endAngle */);
             this.context.stroke();
             this.context.fill();
         };
         BoardPainter.prototype.toColor = function (player) {
             switch (player) {
                 case Player.White:
-                    return "white";
+                    return this.settings.whiteColor;
                 case Player.Black:
-                    return "black";
+                    return this.settings.blackColor;
             }
         };
         return BoardPainter;
     }());
-    Goban.BoardPainter = BoardPainter;
-    var BoardInput = (function () {
-        function BoardInput(coordinates, canvas) {
-            var _this = this;
-            canvas.addEventListener("click", function (event) {
-                if (event.button === 0) {
-                    var _a = coordinates.fromRaw({ x: event.offsetX, y: event.offsetY }), x = _a.x, y = _a.y;
-                    if (0 <= x && x < coordinates.lines && 0 <= y && y < coordinates.lines) {
-                        _this.stoneClicked({ x: x, y: y });
-                    }
-                }
-            });
-        }
-        BoardInput.prototype.stoneClicked = function (point) {
-            //TODO
-            console.log("stone clicked at", point);
-        };
-        return BoardInput;
-    }());
-    Goban.BoardInput = BoardInput;
-    var Canvas = (function () {
-        function Canvas(settings) {
-            this.state = [];
-            var context = settings.canvas.getContext("2d");
-            var coordinates = new Goban.Coordinates(settings.lines, Math.min(settings.canvas.width, settings.canvas.height), 5 /* starSize */);
-            this.boardPainter = new Goban.BoardPainter(coordinates, context);
-            var input = new Goban.BoardInput(coordinates, settings.canvas);
-            this.boardPainter.drawBoard(this.state);
-        }
-        Canvas.prototype.setStones = function (value) {
-            this.state = value;
-            this.boardPainter.drawBoard(this.state);
-            //TODO: redraw on resize
-        };
-        return Canvas;
-    }());
-    Goban.Canvas = Canvas;
 })(Goban || (Goban = {}));

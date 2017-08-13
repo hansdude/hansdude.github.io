@@ -26,10 +26,25 @@
       font-weight: bold;
       line-height: 2em;
     }
+
+.goban-container {
+  width: 100%;
+}
+/*
+  padding-top: 100%;
+  position: relative;
+.goban-container canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+*/
   </style>
 </head>
 <body>
-  <canvas id="goban" width="1000" height="1000"></canvas>
+  <div id="goban-container"><canvas id="goban"></canvas></div>
 
   <div>
     <span class="title">Captures</span>
@@ -45,25 +60,34 @@
 
   <script>
 (() => {
+
   const canvas = document.getElementById("goban");
+  const container = document.getElementById("goban-container");
+
+  let stones = [];
+  let player = Goban.Player.Black;
   const settings = {
     lines: 19,
-    moveListener: ({x, y}) => console.log("x: ", x, ", y: ", y),
+    //moveListener: ({x, y}) => console.log("x: ", x, ", y: ", y),
+    moveListener: (point) => {
+      stones.push({point, player});
+      player =
+          player === Goban.Player.Black
+              ? Goban.Player.White
+              : Goban.Player.Black;
+      goban.setStones(stones);
+    },
     canvas,
   };
   const goban = new Goban.Canvas(settings);
 
-  // Here's where we actually draw the stones.
-  let stones = [];
-  for (let x = 10; x < settings.lines - 4; x++) {
-    for (let y = 10; y < settings.lines - 4; y++) {
-      stones.push({
-        point: {x, y},
-        player: (x + y) % 2 ? Goban.Player.White : Goban.Player.Black,
-      });
-    }
-  }
-  goban.setStones(stones);
+  // Setup window resize
+  const setCanvasSize = () => {
+    canvas.width = canvas.height = Math.min(1000, container.offsetWidth);
+    goban.resize();
+  };
+  setCanvasSize();
+  window.addEventListener("resize", setCanvasSize);
 
   //TODO: move this
   const setCaptures = (color, count) => {
