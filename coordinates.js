@@ -157,4 +157,21 @@ var Goban;
         return BoardInput;
     }());
     Goban.BoardInput = BoardInput;
+    var Canvas = (function () {
+        function Canvas(settings) {
+            this.state = [];
+            var context = settings.canvas.getContext("2d");
+            var coordinates = new Goban.Coordinates(settings.lines, Math.min(settings.canvas.width, settings.canvas.height), 5 /* starSize */);
+            this.boardPainter = new Goban.BoardPainter(coordinates, context);
+            var input = new Goban.BoardInput(coordinates, settings.canvas);
+            this.boardPainter.drawBoard(this.state);
+        }
+        Canvas.prototype.setStones = function (value) {
+            this.state = value;
+            this.boardPainter.drawBoard(this.state);
+            //TODO: redraw on resize
+        };
+        return Canvas;
+    }());
+    Goban.Canvas = Canvas;
 })(Goban || (Goban = {}));

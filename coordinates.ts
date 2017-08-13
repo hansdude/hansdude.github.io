@@ -187,4 +187,32 @@ module Goban {
       console.log("stone clicked at", point);
     }
   }
+
+  export interface Settings {
+    lines: number;
+    moveListener: number;
+    canvas: HTMLCanvasElement;
+  }
+
+  export class Canvas {
+    private state : Array<Stone> = [];
+    private boardPainter : BoardPainter;
+
+    constructor(settings : Settings) {
+      const context = settings.canvas.getContext("2d");
+      const coordinates = new Goban.Coordinates(
+          settings.lines,
+          Math.min(settings.canvas.width, settings.canvas.height),
+          5 /* starSize */);
+      this.boardPainter = new Goban.BoardPainter(coordinates, context);
+      const input = new Goban.BoardInput(coordinates, settings.canvas);
+      this.boardPainter.drawBoard(this.state);
+    }
+
+    setStones(value : Array<Stone>) {
+      this.state = value;
+      this.boardPainter.drawBoard(this.state);
+      //TODO: redraw on resize
+    }
+  }
 }

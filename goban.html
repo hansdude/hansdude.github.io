@@ -46,25 +46,24 @@
   <script>
 (() => {
   const canvas = document.getElementById("goban");
-  const context = canvas.getContext("2d");
-  const coordinates = new Goban.Coordinates(
-      19 /* lines */,
-      1000 /* size */,
-      5 /* startSize */);
-  const boardPainter = new Goban.BoardPainter(coordinates, context);
-  const input = new Goban.BoardInput(coordinates, canvas);
+  const settings = {
+    lines: 19,
+    moveListener: ({x, y}) => console.log("x: ", x, ", y: ", y),
+    canvas,
+  };
+  const goban = new Goban.Canvas(settings);
 
-  // Here's where we actually draw the board state.
+  // Here's where we actually draw the stones.
   let stones = [];
-  for (let x = 10; x < coordinates.lines - 4; x++) {
-    for (let y = 10; y < coordinates.lines - 4; y++) {
+  for (let x = 10; x < settings.lines - 4; x++) {
+    for (let y = 10; y < settings.lines - 4; y++) {
       stones.push({
         point: {x, y},
         player: (x + y) % 2 ? Goban.Player.White : Goban.Player.Black,
       });
     }
   }
-  boardPainter.drawBoard(stones);
+  goban.setStones(stones);
 
   //TODO: move this
   const setCaptures = (color, count) => {
